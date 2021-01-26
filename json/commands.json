@@ -1,0 +1,9 @@
+{
+    "help":"Displays this!",
+    "info":"Displays bot info such as uptime, the currently set webhook, ping, and lists all webhooks.",
+    "send {Title} {Description} {Footer} {imageURL}":"Sends a message with embeds using set webhook. Put each paramater in quotation marks to avoid each word being in a different paramater. To skip a paramater, just use empty quotation marks for it.",
+    "raw {message}":"Sends a message without the embed (the box). Put message in quotation marks.",
+    "sethook {Name of hook}":"Set the webhook that will send messages.",
+    "addhook":"Starts proccess to add a webhook",
+    "deletehook {hook}":"Deletes the hook specified"
+}
