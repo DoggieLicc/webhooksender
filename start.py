@@ -1,38 +1,50 @@
+import os, sys, time
+# Change current wordking directory to script "home" directory
+os.chdir(os.path.dirname(sys.argv[0]))
+
 import discord
 from discord.ext import commands
 import asyncio
 from itertools import cycle
 from discordhooks import DiscordWebhooks
-import random, re, sys
+import random
 import managejson, json
 
+TOKEN = "" #Bot token goes here!
+
 managejson.load()
-TOKEN = "NjMxOTgyNTQzMjA1MzAyMjgy.XZ-yag.-qkxEtUYra6XLYJ21pya2tfMOxY"
-status = ['Licc time', 'for you ;3']
+status = ['.help to get commands!','Hello!']
+
+# Change this to change command prefix
 client = commands.Bot(command_prefix = '.')
 client.remove_command('help')
-currentHook = managejson.get('Test')
-webhook = DiscordWebhooks(managejson.get(currentHook,'hookURL'))
 
+currentHook = None
+webhook = None
+
+# Returns boolean, if string is valid url then True... duh
 def check_url(url):
     regex = re.compile(
-        r'^(?:http|ftp)s?://' # http:// or https://
-        r'localhost|' #localhost...
+        r'^(?:http|ftp)s?://'
+        r'localhost|'
         r'(?:(?:[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?\.)+(?:[A-Z]{2,6}\.?|[A-Z0-9-]{2,}\.?)|'
-        r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})' # ...or ip
-        r'(?::\d+)?' # optional port
+        r'\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})'
+        r'(?::\d+)?'
         r'(?:/?|[/?]\S+)$', re.IGNORECASE)
     return bool(re.search(regex, url))
 
+# If string could be a variable name then True...
 def check_string(s):
     return bool(re.search(r'\s*[A-Za-z_]\w*\s*', s))
 
+# Reset webhook paramaters to nothing
 def clear_hook():
     webhook.set_content(title='', description='', color='')
     webhook.set_author(name='', icon_url='')
     webhook.set_footer(text='', icon_url='')
     webhook.set_image(url='')
 
+# Keeps track of uptime.. and update discord status
 async def timers():
     global uptime
     msg = cycle(status)
@@ -43,13 +55,13 @@ async def timers():
         await asyncio.sleep(5)
         uptime += 5
 
+# Send discord message in embed
 async def embed_send(ctx, description, err=False):
     colors = 0xc000000 if err else 0x80f000
     if err:
         colors = 0xc00000
     else:
         colors = 0x80f000
-    print(colors)
     embed = discord.Embed(title="Command sent:",
         description="**{}**".format(description), color=colors)
     embed.set_footer(text="Command sent by {}".format(ctx.message.author),
@@ -57,6 +69,7 @@ async def embed_send(ctx, description, err=False):
     message = await ctx.send(embed=embed)
     await message.delete(delay=15)
 
+# Sends message that user has to respond to
 async def get_input(ctx, sent, boolean=False, checkurl=False):
     await embed_send(ctx, sent)
     while True:
@@ -79,16 +92,19 @@ async def get_input(ctx, sent, boolean=False, checkurl=False):
                 await msg.delete()
                 await embed_send(ctx, "Not a valid url!", True)
 
+# When ready do stuff
 @client.event
 async def on_ready():
     print('Webhook Sender is ready!')
     client.loop.create_task(timers())
 
+# When command is done delete user command message
 @client.event
 async def on_command_completion(ctx):
     print('{}: {}'.format(ctx.message.author, ctx.message.content))
     await ctx.message.delete()
 
+# When error post it to server, delete if you dont want it
 @client.event
 async def on_command_error(ctx, error):
     print('{}: {}'.format(ctx.message.author, ctx.message.content))
@@ -111,12 +127,14 @@ async def on_message(message):
     content = message.content
     await client.process_commands(message)
 
+# Stops the bot on command... duh
 @client.command(pass_context=True)
 @commands.has_permissions(manage_guild=True)
 async def stop(ctx):
     await embed_send(ctx, 'Stopping bot...')
     sys.exit()
 
+# Custom help command
 @client.command(pass_context=True)
 async def help(ctx):
     embed=discord.Embed(title='Help:', description='This bot sends messages using webhooks.', color=0x00ff40)
@@ -127,6 +145,7 @@ async def help(ctx):
     embed.set_footer(text="Command sent by {}".format(ctx.message.author),icon_url=ctx.message.author.avatar_url)
     await ctx.send(embed=embed)
 
+# Sends webhook message without embed
 @commands.has_permissions(manage_webhooks=True)
 @client.command(pass_context=True)
 async def raw(ctx,message):
@@ -134,6 +153,7 @@ async def raw(ctx,message):
     webhook.send()
     await embed_send(ctx, 'Message Sent.')
 
+# Changes the hook the bot is using
 @client.command(pass_context=True)
 @commands.has_permissions(manage_webhooks=True)
 async def sethook(ctx,hook):
@@ -152,23 +172,28 @@ async def sethook(ctx,hook):
         await embed_send(ctx,
         'Webhook names don\'t have special characters!', True)
 
+# Send a message to the webhook using embed
 @commands.has_permissions(manage_webhooks=True)
 @client.command(pass_context=True)
 async def send(ctx,title,description='',footer='',url=''):
-    color = random.randint(0,256**3)
-    thumbnail = managejson.get(currentHook, 'thumbnailURL')
-    author = managejson.get(currentHook, 'title')
-    webhook.set_content(title=title, description=description, color=color)
-    webhook.set_author(name=author, icon_url=thumbnail)
-    webhook.set_footer(text=footer, icon_url=thumbnail)
-    if check_url(url) or url == '':
-        webhook.set_image(url=url)
-        webhook.send()
-        await embed_send(ctx, 'Message sent')
+    if webhook == None:
+        await embed_send(ctx, 'No webhook set yet!', True)
     else:
-        await embed_send(ctx, 'Invalid image url! Message not sent.', True)
-    clear_hook()
+        color = random.randint(0,256**3)
+        thumbnail = managejson.get(currentHook, 'thumbnailURL')
+        author = managejson.get(currentHook, 'title')
+        webhook.set_content(title=title, description=description, color=color)
+        webhook.set_author(name=author, icon_url=thumbnail)
+        webhook.set_footer(text=footer, icon_url=thumbnail)
+        if check_url(url) or url == '':
+            webhook.set_image(url=url)
+            webhook.send()
+            await embed_send(ctx, 'Message sent')
+        else:
+            await embed_send(ctx, 'Invalid image url! Message not sent.', True)
+        clear_hook()
 
+# Shows information about the bot...
 @client.command(pass_context=True)
 async def info(ctx):
     names = []
@@ -176,10 +201,19 @@ async def info(ctx):
         if managejson.hooks[z]['name']:
             names.append(managejson.hooks[z]['name'])
     embed=discord.Embed(title='Info', color=0x80ff00)
-    embed.add_field(name='List of all webhook names:',
-        value=(', '.join(names)), inline=False)
-    embed.add_field(name='Currentry set webhook:',
-        value='"{}" is set.'.format(managejson.get(currentHook)), inline=False)
+    if names == []:
+        embed.add_field(name='List of all webhook names:',
+            value=('There are no webhooks yet!'), inline=False)
+    else:
+	    embed.add_field(name='List of all webhook names:',
+            value=(', '.join(names)), inline=False)
+    if currentHook == None:
+        embed.add_field(name='Currentry set webhook:',
+            value='No hook set yet!', inline=False)
+    else:
+        embed.add_field(name='Currentry set webhook:',
+            value='"{}" is set.'.format(managejson.get(currentHook)),
+            inline=False)
     embed.add_field(name='Bot Uptime:',
         value='{} seconds'.format(uptime), inline=False)
     embed.add_field(name='Ping:',
@@ -188,12 +222,17 @@ async def info(ctx):
         icon_url=ctx.message.author.avatar_url)
     await ctx.send(embed=embed)
 
+# Deletes specified webhook in bot data (not from discord)
 @client.command(pass_context=True)
 @commands.has_permissions(manage_webhooks=True)
 async def deletehook(ctx, hook):
+    global currentHook, webhook
     hookCaps = hook.capitalize()
     if await get_input(ctx,
         "Are you sure you want to delete \"{}\"?".format(hookCaps), True):
+        if currentHook == hookCaps:
+            currentHook = None
+            webhook = None
         if managejson.delete(hookCaps):
             await embed_send(ctx, 'Webhook "{}" deleted.'.format(hookCaps))
         else:
@@ -202,10 +241,11 @@ async def deletehook(ctx, hook):
     else:
         await embed_send(ctx, "Command cancled", True)
 
+# Adds hook to the bot data (doesnt create webhook)
 @client.command(pass_context=True)
 @commands.has_permissions(manage_webhooks=True)
 async def addhook(ctx):
-    with open('json\\template.json') as f:
+    with open('json/template.json') as f:
         template = json.load(f)
     await ctx.message.delete()
     if await get_input(ctx,
@@ -230,12 +270,9 @@ async def addhook(ctx):
     else:
         await embed_send(ctx, "Command canceled", True)
 
-@client.command(pass_context=True)
-@commands.has_permissions(manage_webhooks=True)
-async def edithook(ctx):
-    print("Hello")
-
+# If problem with login tell the user
 try:
     client.run(TOKEN)
 except discord.LoginFailure:
-    print("The token is incorrect or missing!")
+    print("The token is incorrect or missing! Closing in a few seconds...")
+    time.sleep(10)
